@@ -34,7 +34,7 @@
                     <td>{{ user.user_id }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.role }}</td>
-                    <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ user.registration_time.strftime('%Y-%m-%d') }}</td>
                     <td>
                         {% if user.invited_by %}
                             {{ user.invited_by_user.username if user.invited_by_user else 'Unknown' }}
@@ -72,7 +72,7 @@
                 <tr>
                     <td>{{ code.code }}</td>
                     <td>{{ code.created_by_user.username if code.created_by_user else 'System' }}</td>
-                    <td>{{ code.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ code.registration_time.strftime('%Y-%m-%d') }}</td>
                     <td>{{ code.used_count }}/3</td>
                     <td>
                         <button class="btn-small btn-danger" onclick="deleteInviteCode('{{ code.code }}')">Delete</button>
