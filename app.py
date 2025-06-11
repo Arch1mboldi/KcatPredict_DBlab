@@ -496,8 +496,14 @@ def admin_users():
 
     # 获取所有用户
     users = User.query.all()
+    stats = {
+        'total_users': User.query.count(),
+        'biochemists': User.query.filter_by(role='biochemist').count(),
+        'ml_experimenters': User.query.filter_by(role='ml_experimenter').count(),
+        'admins': User.query.filter_by(role='admin').count(),
+    }
 
-    return render_template('admin_users.html', users=users)
+    return render_template('admin_users.html', users=users, stats=stats)
 
 
 @app.route('/download/<filename>')
