@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Administrator Dashboard</h2>
+
+    <div class="admin-actions">
+        <button onclick="showSection('userManagement')">User Management</button>
+        <button onclick="showSection('invitationCodes')">Invitation Codes</button>
+        <button onclick="showSection('dataOverview')">Data Overview</button>
+    </div>
+
+    <div id="userManagement" class="admin-section">
+        <h3>User Management</h3>
+
+        <div class="search-box">
+            <input type="text" id="userSearch" placeholder="Search users...">
+            <button onclick="searchUsers()">Search</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Invited By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.user_id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.role }}</td>
+                    <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        {% if user.invited_by %}
+                            {{ user.invited_by_user.username if user.invited_by_user else 'Unknown' }}
+                        {% else %}
+                            System
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn-small" onclick="editUser({{ user.user_id }})">Edit</button>
+                        <button class="btn-small btn-danger" onclick="deleteUser({{ user.user_id }})">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="invitationCodes" class="admin-section" style="display:none;">
+        <h3>Invitation Codes</h3>
+
+        <button onclick="generateInviteCode()" class="btn-generate">Generate New Code</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Created By</th>
+                    <th>Created At</th>
+                    <th>Used Count</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for code in invitations %}
+                <tr>
+                    <td>{{ code.code }}</td>
+                    <td>{{ code.created_by_user.username if code.created_by_user else 'System' }}</td>
+                    <td>{{ code.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ code.used_count }}/3</td>
+                    <td>
+                        <button class="btn-small btn-danger" onclick="deleteInviteCode('{{ code.code }}')">Delete</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="dataOverview" class="admin-section" style="display:none;">
+        <h3>System Data Overview</h3>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <h4>Users</h4>
+                <p>{{ stats.users }}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Wet Experiments</h4>
+                <p>{{ stats.wet_experiments }}</p>
+            </div>
+            <div class="stat-card">
+                <h4>ML Experiments</h4>
+                <p>{{ stats.ml_experiments }}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Validations</h4>
+                <p>{{ stats.validations }}</p>
+            </div>
+        </div>
+
+        <div class="charts">
+            <canvas id="userRoleChart" width="400" height="300"></canvas>
+            <canvas id="experimentTimeline" width="400" height="300"></canvas>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        function showSection(sectionId) {
+            // 隐藏所有部分
+            document.querySelectorAll('.admin-section').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // 显示选定的部分
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function generateInviteCode() {
+            if (confirm('Generate a new invitation code?')) {
+                fetch('/admin/generate_invite', {
+                    method: 'POST'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert(`New invitation code generated: ${data.code}`);
+                        location.reload();
+                    } else {
+                        alert('Error generating code');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Network error occurred');
+                });
+            }
+        }
+
+        function deleteUser(userId) {
+            if (confirm('Are you sure you want to delete this user? This cannot be undone.')) {
+                fetch(`/admin/delete_user/${userId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error deleting user');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Network error occurred');
+                });
+            }
+        }
+
+        function deleteInviteCode(code) {
+            if (confirm('Are you sure you want to delete this invitation code?')) {
+                fetch(`/admin/delete_invite/${code}`, {
+                    method: 'DELETE'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error deleting invitation code');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Network error occurred');
+                });
+            }
+        }
+
+        function searchUsers() {
+            // 实现搜索功能
+            const searchTerm = document.getElementById('userSearch').value;
+            if (searchTerm.trim() === '') {
+                alert('Please enter a search term');
+                return;
+            }
+
+            // 这里应该发送搜索请求到服务器
+            // 为了演示，我们可以暂时只显示一个消息
+            alert(`Search functionality not fully implemented. Search term: ${searchTerm}`);
+        }
+
+        function editUser(userId) {
+            // 实现编辑用户功能
+            alert(`Edit functionality not fully implemented. User ID: ${userId}`);
+        }
+
+        // 页面加载时初始化图表
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查Chart.js是否已加载
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js is not loaded');
+                return;
+            }
+
+            // 用户角色分布图
+            const roleCtx = document.getElementById('userRoleChart');
+            if (roleCtx) {
+                const roleChart = new Chart(roleCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Biochemical', 'Machine Learning', 'Both'],
+                        datasets: [{
+                            data: [
+                                {{ stats.roles.wet if stats.roles.wet is defined else 0 }},
+                                {{ stats.roles.ml if stats.roles.ml is defined else 0 }},
+                                {{ stats.roles.both if stats.roles.both is defined else 0 }}
+                            ],
+                            backgroundColor: [
+                                '#4e73df',
+                                '#1cc88a',
+                                '#36b9cc'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'User Role Distribution'
+                            }
+                        }
+                    }
+                });
+            } else {
+                console.error('userRoleChart canvas not found');
+            }
+
+            // 实验时间线图
+            const timelineCtx = document.getElementById('experimentTimeline');
+            if (timelineCtx) {
+                const timelineChart = new Chart(timelineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: {{ stats.timeline.labels|safe if stats.timeline.labels is defined else [] }},
+                        datasets: [{
+                            label: 'Wet Experiments',
+                            data: {{ stats.timeline.wet|safe if stats.timeline.wet is defined else [] }},
+                            borderColor: '#4e73df',
+                            fill: false
+                        }, {
+                            label: 'ML Experiments',
+                            data: {{ stats.timeline.ml|safe if stats.timeline.ml is defined else [] }},
+                            borderColor: '#1cc88a',
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Experiments Timeline'
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Date'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Count'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } else {
+                console.error('experimentTimeline canvas not found');
+            }
+        });
+    </script>
+{% endblock %}
