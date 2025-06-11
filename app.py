@@ -8,7 +8,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Yuzt0872@127.0.0.1:3306/enzyme_predictor'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Zjzlmk200513@127.0.0.1:3306/enzyme_predictor'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1MB
 
@@ -22,8 +22,8 @@ login_manager.login_view = 'login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'biochemist', 'ml_experimenter', 'admin'
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # 'biochemist', 'ml_experimenter',  'admin'
     invite_code = db.Column(db.String(20), unique=True, nullable=True)
     registered_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     registration_time = db.Column(db.DateTime, default=datetime.utcnow)
@@ -35,6 +35,8 @@ class User(UserMixin, db.Model):
     ml_experiments = db.relationship('MLExperiment', backref='experimenter', lazy=True)
     ml_validations = db.relationship('MLValidation', backref='experimenter', lazy=True)
 
+    def is_admin(self):
+        return self.role == 'admin'
 
 class WetExperiment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -156,30 +158,30 @@ def init_db():
             print(f"Error creating procedure: {e}")
             raise
 
-        # 创建触发器
-        try:
-            with db.engine.connect() as connection:
-                # 先删除现有触发器
-                connection.execute(text('DROP TRIGGER IF EXISTS after_user_insert;'))
-                connection.commit()
-
-                # 创建触发器
-                connection.execute(text('''
-                    CREATE TRIGGER after_user_insert
-                    AFTER INSERT ON user
-                    FOR EACH ROW
-                    BEGIN
-                        IF NEW.role IN ('biochemist', 'ml_experimenter') THEN
-                            UPDATE user 
-                            SET invite_uses = invite_uses + 1 
-                            WHERE id = NEW.registered_by;
-                        END IF;
-                    END;
-                '''))
-                connection.commit()
-        except Exception as e:
-            print(f"Error creating trigger: {e}")
-            raise
+            # 创建触发器
+            #try:
+             #   with db.engine.connect() as connection:
+              #      # 先删除现有触发器
+               #     connection.execute(text('DROP TRIGGER IF EXISTS after_user_insert;'))
+                #    connection.commit()
+#
+ #                   # 创建触发器
+  #                  connection.execute(text('''
+   #                             CREATE TRIGGER after_user_insert
+    #                            AFTER INSERT ON user
+     #                           FOR EACH ROW
+      #                          BEGIN
+       #                             IF NEW.role IN ('biochemist', 'ml_experimenter') AND NEW.registered_by IS NOT NULL THEN
+        #                                UPDATE user
+         #                               SET invite_uses = invite_uses + 1
+          #                              WHERE id = NEW.registered_by;
+           #                         END IF;
+            #                    END
+             #               '''))
+              #      connection.commit()
+            #except Exception as e:
+             #   print(f"Error creating trigger: {e}")
+              #  raise
 
         # 创建索引 - 先检查索引是否存在
         with db.engine.connect() as connection:
@@ -220,6 +222,8 @@ def init_db():
                 print("Index idx_username already exists")
 
         print("Database initialized successfully!")
+        # 插入测试用户
+
 # 路由
 @app.route('/')
 def index():
@@ -252,10 +256,16 @@ def index():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        invite_code = request.form['invite_code']
-        role = request.form['role']
+        username = request.form.get('username')
+        password = request.form.get('password')
+        invite_code = request.form.get('invite_code')
+        role = request.form.get('role')
+
+        print(f"Received form data: username={username}, password={password}, invite_code={invite_code}, role={role}")
+
+        if not all([username, password, role]):
+            flash('请填写所有必填字段', 'danger')
+            return redirect(url_for('register'))
 
         # 验证用户名长度
         if not (3 <= len(username) <= 20):
@@ -286,7 +296,7 @@ def register():
         # 创建新用户
         new_user = User(
             username=username,
-            password_hash=generate_password_hash(password, method='scrypt'),  # 指定算法
+            password_hash=generate_password_hash(password, method='scrypt'),
             role=role,
             invite_code=generate_invite_code(),
             registered_by=inviter.id
@@ -294,6 +304,11 @@ def register():
 
         db.session.add(new_user)
         db.session.commit()
+
+        # 手动更新invite_uses字段
+        if role in ('biochemist', 'ml_experimenter'):
+            inviter.invite_uses += 1
+            db.session.commit()
 
         flash('注册成功，请登录', 'success')
         return redirect(url_for('login'))
@@ -331,13 +346,13 @@ def logout():
 @app.route('/enzyme_entry', methods=['GET', 'POST'])
 @login_required
 def enzyme_entry():
-    if current_user.role != 'biochemist':
+    if current_user.role == 'ml_experimenter' or current_user.role == 'admin':
         flash('只有生化实验人员可以访问此页面', 'danger')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        experiment_time = datetime.strptime(request.form['experiment_time'], '%Y-%m-%d %H:%M:%S')
-        enzyme_class = request.form['enzyme_class']
+        experiment_time = datetime.strptime(request.form['experiment_time'], '%Y-%m-%dT%H:%M')
+        enzyme_class = request.form['ec_number']
         substrate_name = request.form['substrate_name']
         kcat_value = float(request.form['kcat_value'])
 
@@ -361,7 +376,7 @@ def enzyme_entry():
 @app.route('/ml_entry', methods=['GET', 'POST'])
 @login_required
 def ml_entry():
-    if current_user.role != 'ml_experimenter':
+    if current_user.role == 'biochemist' or current_user.role == 'admin':
         flash('只有机器学习实验人员可以访问此页面', 'danger')
         return redirect(url_for('index'))
 
@@ -370,7 +385,7 @@ def ml_entry():
 
         if action == 'pretrain':
             # 处理模型预训练表单
-            training_time = datetime.strptime(request.form['training_time'], '%Y-%m-%d %H:%M:%S')
+            training_time = datetime.strptime(request.form['training_time'], '%Y-%m-%dT%H:%M')
             dataset_seed = int(request.form['dataset_seed'])
             rmse = float(request.form['rmse'])
             pearson_r = float(request.form['pearson_r'])
@@ -403,7 +418,7 @@ def ml_entry():
 
         elif action == 'validate':
             # 处理模型验证表单
-            prediction_time = datetime.strptime(request.form['prediction_time'], '%Y-%m-%d %H:%M:%S')
+            prediction_time = datetime.strptime(request.form['prediction_time'], '%Y-%m-%dT%H:%M')
             score = float(request.form['score'])
             experiment_id = int(request.form['experiment_id'])
 

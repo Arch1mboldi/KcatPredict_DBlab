@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>酶预测系统</title>
+    <title>酶动力学参数(kcat)预测系统</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -14,7 +14,7 @@
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <i class="fa fa-flask text-blue-600 text-2xl"></i>
-                <span class="font-bold text-xl text-gray-800">酶预测系统</span>
+                <span class="font-bold text-xl text-gray-800">酶动力学参数预测系统</span>
             </div>
             
             <div class="flex items-center space-x-4">
@@ -39,6 +39,7 @@
                             <i class="fa fa-caret-down"></i>
                         </button>
                         <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                            <a class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">你的邀请码：{{ current_user.invite_code }}</a>
                             <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">退出登录</a>
                         </div>
                     </div>
@@ -72,18 +73,7 @@
         <div class="container mx-auto px-4">
             <div class="flex flex-col md:flex-row justify-between items-center">
                 <div class="mb-4 md:mb-0">
-                    <p class="text-gray-400">© 2025 酶预测系统 | 数据库应用系统设计和实现</p>
-                </div>
-                <div class="flex space-x-4">
-                    <a href="#" class="text-gray-400 hover:text-white transition-colors">
-                        <i class="fa fa-github"></i>
-                    </a>
-                    <a href="#" class="text-gray-400 hover:text-white transition-colors">
-                        <i class="fa fa-linkedin"></i>
-                    </a>
-                    <a href="#" class="text-gray-400 hover:text-white transition-colors">
-                        <i class="fa fa-twitter"></i>
-                    </a>
+                    <p class="text-gray-400"> <a href="https://github.com/Arch1mboldi/KcatPredict_DBlab.git">© 酶动力学参数预测系统</a><br>华东理工大学《数据库原理》实验 <br>计科233 于智同&张桔焯</p>
                 </div>
             </div>
         </div>
