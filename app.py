@@ -204,8 +204,24 @@ def init_db():
 # 路由
 @app.route('/')
 def index():
-    # 获取酶数据
-    enzyme_data = WetExperiment.query.all()
+    # 获取搜索参数
+    enzyme_search_term = request.args.get('enzyme_search', '').strip()
+
+    # 初始化酶数据查询
+    enzyme_data_query = WetExperiment.query
+
+    # 应用搜索条件
+    if enzyme_search_term:
+        enzyme_data_query = enzyme_data_query.filter(
+            (WetExperiment.enzyme_class.like(f'%{enzyme_search_term}%')) |
+            (WetExperiment.substrate_name.like(f'%{enzyme_search_term}%')) |
+            (User.username.like(f'%{enzyme_search_term}%'))
+        ).join(User, WetExperiment.user_id == User.id, isouter=True)
+    else:
+        enzyme_data_query = enzyme_data_query.join(User, WetExperiment.user_id == User.id, isouter=True)
+
+    # 执行查询
+    enzyme_data = enzyme_data_query.all()
 
     # 获取机器学习实验及其评分
     ml_experiments = MLExperiment.query.all()
@@ -226,9 +242,11 @@ def index():
                 'validation_count': 0
             }
 
-    return render_template('index.html', enzyme_data=enzyme_data, ml_experiments=ml_experiments,
-                           experiment_scores=experiment_scores)
-
+    return render_template('index.html',
+                           enzyme_data=enzyme_data,
+                           ml_experiments=ml_experiments,
+                           experiment_scores=experiment_scores,
+                           enzyme_search_term=enzyme_search_term)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
