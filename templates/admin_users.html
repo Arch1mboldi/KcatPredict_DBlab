@@ -33,7 +33,7 @@
 
             <div class="pt-4">
                 <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md">
-                    提交添加用户
+                    添加用户
                 </button>
             </div>
         </form>
@@ -66,10 +66,10 @@
 
             <div class="pt-4">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
-                    提交更新用户
+                    更新用户
                 </button>
                 <a href="{{ url_for('admin_users') }}" class="ml-3 text-gray-600 hover:text-gray-800 font-medium">
-                    取消
+                    隐藏
                 </a>
             </div>
         </form>
@@ -77,16 +77,15 @@
     {% endif %}
 
     <div id="userManagement" class="admin-section">
-        <h3>User Management</h3>
 
         <div class="search-box">
             <form method="GET" action="{{ url_for('admin_users') }}" class="flex">
                 <input type="text" id="userSearch" name="user_search"
-                       placeholder="Search users by username or role..."
+                       placeholder="S根据用户名或角色搜索"
                        value="{{ search_term }}"
                        class="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-r-md transition-colors duration-200">
-                    Search
+                    搜索
                 </button>
                 {% if search_term %}
                 <a href="{{ url_for('admin_users') }}" class="ml-2 text-gray-600 hover:text-gray-800 font-medium">
