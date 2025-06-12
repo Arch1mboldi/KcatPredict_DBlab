@@ -1,11 +1,13 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import re
 import os
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-
+from sqlalchemy.exc import IntegrityError
+import string
+from random import choice
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Yuzt0872@127.0.0.1:3307/enzyme_predictor'
@@ -157,31 +159,6 @@ def init_db():
         except Exception as e:
             print(f"Error creating procedure: {e}")
             raise
-
-            # 创建触发器
-            #try:
-             #   with db.engine.connect() as connection:
-              #      # 先删除现有触发器
-               #     connection.execute(text('DROP TRIGGER IF EXISTS after_user_insert;'))
-                #    connection.commit()
-#
- #                   # 创建触发器
-  #                  connection.execute(text('''
-   #                             CREATE TRIGGER after_user_insert
-    #                            AFTER INSERT ON user
-     #                           FOR EACH ROW
-      #                          BEGIN
-       #                             IF NEW.role IN ('biochemist', 'ml_experimenter') AND NEW.registered_by IS NOT NULL THEN
-        #                                UPDATE user
-         #                               SET invite_uses = invite_uses + 1
-          #                              WHERE id = NEW.registered_by;
-           #                         END IF;
-            #                    END
-             #               '''))
-              #      connection.commit()
-            #except Exception as e:
-             #   print(f"Error creating trigger: {e}")
-              #  raise
 
         # 创建索引 - 先检查索引是否存在
         with db.engine.connect() as connection:
@@ -441,6 +418,15 @@ def ml_entry():
     return render_template('ml_entry.html', experiments=experiments)
 
 
+def generate_unique_invite_code():
+    while True:
+        # 生成10位大写字母和数字的随机码
+        code = ''.join(choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        # 检查邀请码是否已存在
+        if not User.query.filter_by(invite_code=code).first():
+            return code
+
+
 @app.route('/admin/users', methods=['GET', 'POST'])
 @login_required
 def admin_users():
@@ -448,54 +434,123 @@ def admin_users():
         flash('只有管理员可以访问此页面', 'danger')
         return redirect(url_for('index'))
 
-    if request.method == 'POST':
-        action = request.form.get('action')
-        user_id = request.form.get('user_id')
+    edit_user_id = None
+    edit_user = None
 
-        if action == 'delete' and user_id:
-            user = User.query.get(user_id)
-            if user and user.role != 'admin':  # 不能删除管理员
-                db.session.delete(user)
-                db.session.commit()
-                flash('用户已删除', 'success')
+    # 处理不同操作类型
+    action = request.args.get('action') or request.form.get('action')
+
+    # 处理编辑用户请求（GET方式）
+    if action == 'edit':
+        user_id = request.args.get('user_id')
+        if not user_id:
+            flash('用户ID不存在', 'danger')
+        else:
+            edit_user = User.query.get(user_id)
+            if not edit_user:
+                flash('用户不存在', 'danger')
             else:
-                flash('无法删除该用户', 'danger')
+                edit_user_id = user_id
 
-        elif action == 'add':
-            username = request.form['username']
-            password = request.form['password']
-            role = request.form['role']
+    # 处理编辑用户表单提交（POST方式）
+    elif request.method == 'POST' and action == 'edit_user':
+        user_id = request.form.get('user_id')
+        if not user_id:
+            flash('用户ID不存在', 'danger')
+            return redirect(url_for('admin_users'))
 
-            # 验证用户名长度
-            if not (3 <= len(username) <= 20):
-                flash('用户名长度必须在3-20个字符之间', 'danger')
-                return redirect(url_for('admin_users'))
+        user = User.query.get(user_id)
+        if not user:
+            flash('用户不存在', 'danger')
+            return redirect(url_for('admin_users'))
 
-            # 验证密码复杂度
-            if not validate_password(password):
-                flash('密码必须包含至少两种字符类型（大写字母、小写字母、数字、特殊字符）', 'danger')
-                return redirect(url_for('admin_users'))
+        new_username = request.form.get('username')
+        new_role = request.form.get('role')
 
-            # 检查用户名是否已存在
-            if User.query.filter_by(username=username).first():
-                flash('用户名已存在', 'danger')
-                return redirect(url_for('admin_users'))
+        if not all([new_username, new_role]):
+            flash('请填写所有必填字段', 'danger')
+            return redirect(url_for('admin_users', action='edit', user_id=user_id))
 
-            # 创建新用户
+        # 检查用户名是否已存在（如果用户名已更改）
+        if new_username != user.username and User.query.filter_by(username=new_username).first():
+            flash('用户名已存在', 'danger')
+            return redirect(url_for('admin_users', action='edit', user_id=user_id))
+
+        # 更新用户信息
+        user.username = new_username
+        user.role = new_role
+
+        try:
+            db.session.commit()
+            flash('用户信息更新成功', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'更新用户失败: {str(e)}', 'danger')
+            return redirect(url_for('admin_users', action='edit', user_id=user_id))
+
+    # 处理删除用户请求
+    elif action == 'delete':
+        user_id = request.args.get('user_id')
+        if not user_id:
+            flash('用户ID不存在', 'danger')
+        else:
+            user = User.query.get(user_id)
+            if not user:
+                flash('用户不存在', 'danger')
+            elif user.role == 'admin':
+                flash('不能删除管理员用户', 'danger')
+            else:
+                try:
+                    db.session.delete(user)
+                    db.session.commit()
+                    flash('用户删除成功', 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'删除用户失败: {str(e)}', 'danger')
+
+    # 处理添加用户请求
+    elif request.method == 'POST' and action == 'add_user':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+
+        if not all([username, password, role]):
+            flash('请填写所有必填字段', 'danger')
+        elif not (3 <= len(username) <= 20):
+            flash('用户名长度必须在3-20个字符之间', 'danger')
+        elif not validate_password(password):
+            flash('密码必须包含至少两种字符类型', 'danger')
+        elif User.query.filter_by(username=username).first():
+            flash('用户名已存在', 'danger')
+        else:
+            invite_code = generate_unique_invite_code()
             new_user = User(
                 username=username,
-                password_hash=generate_password_hash(password, method='scrypt'),  # 关键修改
+                password_hash=generate_password_hash(password, method='scrypt'),
                 role=role,
-                invite_code=generate_invite_code() if role != 'admin' else None
+                invite_code=invite_code,
+                registered_by=current_user.id,
+                registration_time=datetime.utcnow()
             )
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                flash(f'用户添加成功！邀请码: {invite_code}', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'添加用户失败: {str(e)}', 'danger')
 
-            db.session.add(new_user)
-            db.session.commit()
+    # 处理搜索请求
+    search_term = request.args.get('user_search', '').strip()
+    if search_term:
+        users = User.query.filter(
+            (User.username.like(f'%{search_term}%')) |
+            (User.role.like(f'%{search_term}%'))
+        ).all()
+    else:
+        users = User.query.all()
 
-            flash('用户已添加', 'success')
-
-    # 获取所有用户
-    users = User.query.all()
     stats = {
         'total_users': User.query.count(),
         'biochemists': User.query.filter_by(role='biochemist').count(),
@@ -503,7 +558,11 @@ def admin_users():
         'admins': User.query.filter_by(role='admin').count(),
     }
 
-    return render_template('admin_users.html', users=users, stats=stats)
+    return render_template('admin_users.html',
+                           users=users,
+                           stats=stats,
+                           edit_user_id=edit_user_id,
+                           edit_user=edit_user)
 
 
 @app.route('/download/<filename>')

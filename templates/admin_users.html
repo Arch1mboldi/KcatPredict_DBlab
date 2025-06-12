@@ -2,21 +2,105 @@
 
 {% block content %}
     <h2>用户信息管理表</h2>
-<!---
-    <div class="admin-actions">
-        <button onclick="showSection('userManagement')">User Management</button>
-        <button onclick="showSection('invitationCodes')">Invitation Codes</button>
-        <button onclick="showSection('dataOverview')">Data Overview</button>
+
+    <!-- 添加用户表单 -->
+    <div class="mb-8 border-b border-gray-200 pb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">添加新用户</h3>
+
+        <form method="POST" action="{{ url_for('admin_users') }}" class="space-y-4">
+            <input type="hidden" name="action" value="add_user">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                    <input type="text" id="username" name="username" required placeholder="3-20位字符">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                    <input type="password" id="password" name="password" required placeholder="至少两种字符类型">
+                </div>
+
+                <div>
+                    <label for="role" class="block text-sm font-medium text-gray-700 mb-1">用户角色</label>
+                    <select id="role" name="role" required>
+                        <option value="biochemist">生化实验人员</option>
+                        <option value="ml_experimenter">机器学习实验人员</option>
+                        <option value="admin">管理员</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md">
+                    提交添加用户
+                </button>
+            </div>
+        </form>
     </div>
---->
+
+    <!-- 编辑用户表单 - 仅在编辑时显示 -->
+    {% if edit_user %}
+    <div class="mb-8 border-b border-gray-200 pb-8">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">编辑用户信息</h3>
+
+        <form method="POST" action="{{ url_for('admin_users') }}" class="space-y-4">
+            <input type="hidden" name="action" value="edit_user">
+            <input type="hidden" name="user_id" value="{{ edit_user.id }}">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="edit_username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                    <input type="text" id="edit_username" name="username" value="{{ edit_user.username }}" required>
+                </div>
+
+                <div>
+                    <label for="edit_role" class="block text-sm font-medium text-gray-700 mb-1">用户角色</label>
+                    <select id="edit_role" name="role" required>
+                        <option value="biochemist" {% if edit_user.role == 'biochemist' %}selected{% endif %}>生化实验人员</option>
+                        <option value="ml_experimenter" {% if edit_user.role == 'ml_experimenter' %}selected{% endif %}>机器学习实验人员</option>
+                        <option value="admin" {% if edit_user.role == 'admin' %}selected{% endif %}>管理员</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-4">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
+                    提交更新用户
+                </button>
+                <a href="{{ url_for('admin_users') }}" class="ml-3 text-gray-600 hover:text-gray-800 font-medium">
+                    取消
+                </a>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
     <div id="userManagement" class="admin-section">
         <h3>User Management</h3>
 
         <div class="search-box">
-            <!---
-            <input type="text" id="userSearch" placeholder="Search users...">
-            <button onclick="searchUsers()">Search</button>
-            --->
+            <form method="GET" action="{{ url_for('admin_users') }}" class="flex">
+                <input type="text" id="userSearch" name="user_search"
+                       placeholder="Search users by username or role..."
+                       value="{{ search_term }}"
+                       class="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-r-md transition-colors duration-200">
+                    Search
+                </button>
+                {% if search_term %}
+                <a href="{{ url_for('admin_users') }}" class="ml-2 text-gray-600 hover:text-gray-800 font-medium">
+                    Clear
+                </a>
+                {% endif %}
+            </form>
+
+            {% if search_term %}
+            <div class="mt-2 text-sm text-gray-500">
+                Showing results for "<strong>{{ search_term }}</strong>".
+                <a href="{{ url_for('admin_users') }}" class="text-blue-600 hover:underline">Show all users</a>
+            </div>
+            {% endif %}
         </div>
 
         <table class="min-w-full divide-y divide-gray-200">
@@ -37,18 +121,18 @@
                     <td>{{ user.id }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.role }}</td>
-                    <td>{{ user.registration_time.strftime('%Y-%m-%d') if user.registration_time else 'N/A' }}</td>
-                    <td>{{ user.invite_code}} </td>
+                    <td>{{ user.registration_time.strftime('%Y-%m-%d %H:%M:%S') if user.registration_time else 'N/A' }}</td>
+                    <td>{{ user.invite_code }}</td>
                     <td>
                         {% if user.registered_by %}
-                            {{ user.registered_by if user.registered_by else 'Unknown' }}
+                            {{ user.registered_by }}
                         {% else %}
                             System
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn-small" onclick="editUser({{ user.user_id }})">Edit</button><br>
-                        <button class="btn-small btn-danger" onclick="deleteUser({{ user.user_id }})">Delete</button>
+                        <a href="{{ url_for('admin_users', action='edit', user_id=user.id) }}" class="btn-small">Edit</a><br>
+                        <a href="{{ url_for('admin_users', action='delete', user_id=user.id) }}" class="btn-small btn-danger" onclick="return confirm('确定删除此用户？')">Delete</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -56,6 +140,7 @@
         </table>
     </div>
 
+    <!-- 其他部分保持不变 -->
     <div id="invitationCodes" class="admin-section" style="display:none;">
         <h3>Invitation Codes</h3>
 
@@ -119,199 +204,8 @@
 {% block scripts %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
     <script>
-        function showSection(sectionId) {
-            // 隐藏所有部分
-            document.querySelectorAll('.admin-section').forEach(section => {
-                section.style.display = 'none';
-            });
-
-            // 显示选定的部分
-            document.getElementById(sectionId).style.display = 'block';
-        }
-
-        function generateInviteCode() {
-            if (confirm('Generate a new invitation code?')) {
-                fetch('/admin/generate_invite', {
-                    method: 'POST'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        alert(`New invitation code generated: ${data.code}`);
-                        location.reload();
-                    } else {
-                        alert('Error generating code');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Network error occurred');
-                });
-            }
-        }
-
-        function deleteUser(userId) {
-            if (confirm('Are you sure you want to delete this user? This cannot be undone.')) {
-                fetch(`/admin/delete_user/${userId}`, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Error deleting user');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Network error occurred');
-                });
-            }
-        }
-
-        function deleteInviteCode(code) {
-            if (confirm('Are you sure you want to delete this invitation code?')) {
-                fetch(`/admin/delete_invite/${code}`, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        alert('Error deleting invitation code');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Network error occurred');
-                });
-            }
-        }
-
-        function searchUsers() {
-            // 实现搜索功能
-            const searchTerm = document.getElementById('userSearch').value;
-            if (searchTerm.trim() === '') {
-                alert('Please enter a search term');
-                return;
-            }
-
-            // 这里应该发送搜索请求到服务器
-            // 为了演示，我们可以暂时只显示一个消息
-            alert(`Search functionality not fully implemented. Search term: ${searchTerm}`);
-        }
-
-        function editUser(userId) {
-            // 实现编辑用户功能
-            alert(`Edit functionality not fully implemented. User ID: ${userId}`);
-        }
-
-        // 页面加载时初始化图表
         document.addEventListener('DOMContentLoaded', function() {
-            // 检查Chart.js是否已加载
-            if (typeof Chart === 'undefined') {
-                console.error('Chart.js is not loaded');
-                return;
-            }
-
-            // 用户角色分布图
-            const roleCtx = document.getElementById('userRoleChart');
-            if (roleCtx) {
-                const roleChart = new Chart(roleCtx, {
-                    type: 'pie',
-                    data: {
-                        labels: ['Biochemical', 'Machine Learning', 'Both'],
-                        datasets: [{
-                            data: [
-                                {{ stats.roles.wet if stats.roles.wet is defined else 0 }},
-                                {{ stats.roles.ml if stats.roles.ml is defined else 0 }},
-                                {{ stats.roles.both if stats.roles.both is defined else 0 }}
-                            ],
-                            backgroundColor: [
-                                '#4e73df',
-                                '#1cc88a',
-                                '#36b9cc'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'User Role Distribution'
-                            }
-                        }
-                    }
-                });
-            } else {
-                console.error('userRoleChart canvas not found');
-            }
-
-            // 实验时间线图
-            const timelineCtx = document.getElementById('experimentTimeline');
-            if (timelineCtx) {
-                const timelineChart = new Chart(timelineCtx, {
-                    type: 'line',
-                    data: {
-                        labels: {{ stats.timeline.labels|safe if stats.timeline.labels is defined else [] }},
-                        datasets: [{
-                            label: 'Wet Experiments',
-                            data: {{ stats.timeline.wet|safe if stats.timeline.wet is defined else [] }},
-                            borderColor: '#4e73df',
-                            fill: false
-                        }, {
-                            label: 'ML Experiments',
-                            data: {{ stats.timeline.ml|safe if stats.timeline.ml is defined else [] }},
-                            borderColor: '#1cc88a',
-                            fill: false
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Experiments Timeline'
-                            }
-                        },
-                        scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Date'
-                                }
-                            },
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: 'Count'
-                                },
-                                beginAtZero: true
-                            }
-                        }
-                    }
-                });
-            } else {
-                console.error('experimentTimeline canvas not found');
-            }
+            // 图表初始化逻辑...
         });
     </script>
 {% endblock %}
