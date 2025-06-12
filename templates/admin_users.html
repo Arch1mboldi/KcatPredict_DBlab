@@ -1,49 +1,53 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h2>Administrator Dashboard</h2>
-
+    <h2>用户信息管理表</h2>
+<!---
     <div class="admin-actions">
         <button onclick="showSection('userManagement')">User Management</button>
         <button onclick="showSection('invitationCodes')">Invitation Codes</button>
         <button onclick="showSection('dataOverview')">Data Overview</button>
     </div>
-
+--->
     <div id="userManagement" class="admin-section">
         <h3>User Management</h3>
 
         <div class="search-box">
+            <!---
             <input type="text" id="userSearch" placeholder="Search users...">
             <button onclick="searchUsers()">Search</button>
+            --->
         </div>
 
-        <table>
-            <thead>
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
                 <tr>
                     <th>ID</th>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Joined</th>
-                    <th>Invited By</th>
-                    <th>Actions</th>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>注册时间</th>
+                    <th>邀请码</th>
+                    <th>邀请人id</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
                 {% for user in users %}
                 <tr>
-                    <td>{{ user.user_id }}</td>
+                    <td>{{ user.id }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.role }}</td>
-                    <td>{{ user.registration_time.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ user.registration_time.strftime('%Y-%m-%d') if user.registration_time else 'N/A' }}</td>
+                    <td>{{ user.invite_code}} </td>
                     <td>
-                        {% if user.invited_by %}
-                            {{ user.invited_by_user.username if user.invited_by_user else 'Unknown' }}
+                        {% if user.registered_by %}
+                            {{ user.registered_by if user.registered_by else 'Unknown' }}
                         {% else %}
                             System
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn-small" onclick="editUser({{ user.user_id }})">Edit</button>
+                        <button class="btn-small" onclick="editUser({{ user.user_id }})">Edit</button><br>
                         <button class="btn-small btn-danger" onclick="deleteUser({{ user.user_id }})">Delete</button>
                     </td>
                 </tr>

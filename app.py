@@ -8,7 +8,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Zjzlmk200513@127.0.0.1:3306/enzyme_predictor'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Yuzt0872@127.0.0.1:3307/enzyme_predictor'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1MB
 
